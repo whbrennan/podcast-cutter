@@ -6,64 +6,142 @@
 <title>Podcast Cutter</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
   :root {
-    --bg: #0d0d0d; --surface: #161616; --surface2: #1f1f1f;
-    --border: #2a2a2a; --accent: #e8ff47; --accent2: #ff6b35;
-    --text: #f0f0f0; --muted: #666; --success: #4eff91;
-    --error: #ff4e6a; --radius: 4px;
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #666;
+    --success: #4eff91;
+    --error: #ff4e6a;
+    --radius: 4px;
   }
+
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; overflow-x: hidden; }
-  body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px); pointer-events: none; z-index: 999; }
-  header { border-bottom: 1px solid var(--border); padding: 20px 40px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; background: rgba(13,13,13,0.95); backdrop-filter: blur(12px); z-index: 100; }
-  .logo { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; border: 1px solid var(--accent); padding: 4px 10px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,13,13,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+  }
+
   header h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
   header h1 span { color: var(--accent); }
-  .status-bar { margin-left: auto; font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+  .status-bar {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
   .status-dot.ready  { background: var(--success); box-shadow: 0 0 8px var(--success); }
   .status-dot.loading{ background: var(--accent);  box-shadow: 0 0 8px var(--accent); animation: pulse 1s infinite; }
   .status-dot.error  { background: var(--error); }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
   main { max-width: 1100px; margin: 0 auto; padding: 40px; display: grid; gap: 24px; }
+
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
   .card-header h2 { font-size: 12px; font-family: 'Space Mono', monospace; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
   .card-header h2 span { color: var(--accent); margin-right: 8px; }
   .card-body { padding: 20px; }
-  .drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 48px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 48px 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative;
+  }
   .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(232,255,71,0.03); }
   .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .drop-icon { font-size: 36px; margin-bottom: 12px; display: block; }
   .drop-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
   .drop-zone p { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
   .file-loaded { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); }
   .file-loaded .file-icon { font-size: 28px; }
   .file-loaded .file-info { flex: 1; }
   .file-loaded .file-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .file-loaded .file-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
   .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; font-family: 'Space Mono', monospace; font-size: 11px; cursor: pointer; border-radius: var(--radius); transition: all 0.15s; }
   .btn-ghost:hover { border-color: var(--error); color: var(--error); }
+
   .mode-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .mode-btn { padding: 8px 20px; background: none; border: none; color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
   .mode-btn.active { background: var(--accent); color: #000; }
   .mode-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
   .segments-table { width: 100%; border-collapse: collapse; }
   .segments-table th { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
   .segments-table td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
   .seg-num { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent); width: 36px; text-align: center; }
+
   .seg-input { background: var(--surface2); border: 1px solid transparent; border-radius: var(--radius); color: var(--text); font-family: 'Space Mono', monospace; font-size: 12px; padding: 7px 10px; width: 100%; transition: border-color 0.15s; }
   .seg-input:focus { outline: none; border-color: var(--accent); }
   .seg-input.ts { width: 110px; text-align: center; }
   .seg-input.invalid { border-color: var(--error) !important; }
+
   .col-order { width: 44px; } .col-name { min-width: 180px; } .col-ts { width: 120px; } .col-del { width: 44px; }
+
   .btn-del { background: none; border: none; color: var(--border); cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: var(--radius); transition: color 0.15s; line-height: 1; }
   .btn-del:hover { color: var(--error); }
+
   .drag-handle { cursor: grab; color: var(--border); font-size: 14px; padding: 4px 8px; display: inline-block; }
   .drag-handle:active { cursor: grabbing; }
   .row-dragging { opacity: 0.4; }
   .row-drag-over td { border-top: 2px solid var(--accent); }
+
   .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
   .btn { padding: 9px 18px; border-radius: var(--radius); font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; display: inline-flex; align-items: center; gap: 7px; }
   .btn-primary { background: var(--accent); color: #000; font-weight: 700; }
   .btn-primary:hover { background: #d4eb30; }
@@ -73,45 +151,60 @@
   .btn-csv { background: none; border-color: var(--border); color: var(--muted); position: relative; overflow: hidden; }
   .btn-csv input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .btn-csv:hover { border-color: var(--accent2); color: var(--accent2); }
+
   .merge-note { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); padding: 10px 14px; background: var(--surface2); border-left: 3px solid var(--accent2); margin-top: 12px; }
   .merge-name-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
   .merge-name-row label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
   .quality-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
   .q-field { display: flex; flex-direction: column; gap: 6px; }
   .q-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
   .q-select { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: 'Space Mono', monospace; font-size: 12px; padding: 8px 12px; cursor: pointer; transition: border-color 0.15s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
   .q-select:focus { outline: none; border-color: var(--accent); }
+
   .preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .preset-btn { padding: 6px 14px; background: none; border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; transition: all 0.15s; }
   .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
   .preset-btn.active { background: rgba(232,255,71,0.08); border-color: var(--accent); color: var(--accent); }
+
   .q-note { grid-column: 1 / -1; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); padding: 8px 12px; background: var(--surface2); border-left: 2px solid var(--border); border-radius: 0 var(--radius) var(--radius) 0; line-height: 1.7; }
   .q-note .hl { color: var(--accent2); }
+
   .progress-wrap { margin-top: 24px; display: none; }
   .progress-wrap.visible { display: block; }
   .progress-label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
   .progress-bar-bg { background: var(--surface2); border-radius: 2px; height: 6px; overflow: hidden; }
   .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.3s; width: 0%; }
+
   .log { margin-top: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; max-height: 180px; overflow-y: auto; font-family: 'Space Mono', monospace; font-size: 11px; line-height: 1.8; color: var(--muted); display: none; }
   .log.visible { display: block; }
   .log .ok { color: var(--success); } .log .err { color: var(--error); } .log .info { color: var(--accent); }
+
   .downloads { display: none; flex-direction: column; gap: 8px; margin-top: 16px; }
   .downloads.visible { display: flex; }
   .dl-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; color: var(--text); transition: border-color 0.15s; font-size: 13px; }
   .dl-item:hover { border-color: var(--success); }
   .dl-item .dl-icon { font-size: 18px; } .dl-item .dl-name { flex: 1; } .dl-item .dl-size { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); } .dl-item .dl-arrow { color: var(--success); }
+
   .audio-player-row { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
   audio { flex: 1; height: 36px; filter: invert(1) hue-rotate(180deg) brightness(0.85); border-radius: var(--radius); }
   .duration-badge { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent); background: rgba(232,255,71,0.08); border: 1px solid rgba(232,255,71,0.2); padding: 4px 10px; border-radius: var(--radius); white-space: nowrap; }
+
   footer { text-align: center; padding: 32px 40px; font-family: 'Space Mono', monospace; font-size: 10px; color: var(--border); border-top: 1px solid var(--border); margin-top: 16px; }
+
   .ffmpeg-loading { position: fixed; inset: 0; background: rgba(13,13,13,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; gap: 16px; }
   .ffmpeg-loading h2 { font-family: 'Space Mono', monospace; font-size: 13px; letter-spacing: 0.15em; color: var(--accent); }
   .ffmpeg-loading p { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
   .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
   [data-tip] { position: relative; }
   [data-tip]:hover::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); background: #111; border: 1px solid var(--border); color: var(--text); font-family: 'Space Mono', monospace; font-size: 10px; white-space: nowrap; padding: 4px 8px; border-radius: var(--radius); pointer-events: none; z-index: 200; }
-  @media (max-width: 700px) { main { padding: 16px; } header { padding: 14px 16px; } .col-name { min-width: 120px; } .seg-input.ts { width: 90px; } }
+
+  @media (max-width: 700px) {
+    main { padding: 16px; } header { padding: 14px 16px; }
+    .col-name { min-width: 120px; } .seg-input.ts { width: 90px; }
+  }
 </style>
 </head>
 <body>
@@ -119,7 +212,7 @@
 <div class="ffmpeg-loading" id="ffmpegLoading">
   <div class="spinner"></div>
   <h2>LOADING ENGINE</h2>
-  <p>Initializing ffmpeg — runs 100% in your browser</p>
+  <p>Initializing ffmpeg.wasm — runs 100% in your browser</p>
 </div>
 
 <header>
@@ -276,42 +369,35 @@
 
 <footer>PODCAST CUTTER — All processing runs in your browser. No files are uploaded to any server.</footer>
 
-<script>
-// KEY CHANGE: Using ffmpeg 0.11.6 — does NOT require SharedArrayBuffer or COOP/COEP headers.
-// This version works on GitHub Pages, Netlify, or any static host.
-(function() {
-  var s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
-  s.onload = initFFmpeg;
-  s.onerror = function() {
-    document.getElementById('ffmpegLoading').innerHTML =
-      '<div style="color:var(--error);font-family:\'Space Mono\',monospace;text-align:center;padding:40px">Failed to load ffmpeg.<br><span style="font-size:11px;color:var(--muted)">Check your internet connection and reload.</span></div>';
-  };
-  document.head.appendChild(s);
-})();
+<script type="module">
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
 
-var ffmpeg = null;
-var audioFile = null;
-var mode = 'cut';
-var rowCount = 0;
-var dragSrcRow = null;
+let ffmpeg = null;
+let audioFile = null;
+let mode = 'cut';
+let rowCount = 0;
+let dragSrcRow = null;
 
 async function initFFmpeg() {
   try {
-    var _FFmpeg = FFmpeg.createFFmpeg({
-      log: false,
-      corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    ffmpeg = new FFmpeg();
+    ffmpeg.on('log', () => {});
+    await ffmpeg.load({
+      coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
+      wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
     });
-    await _FFmpeg.load();
-    ffmpeg = _FFmpeg;
-    window._fetchFile = FFmpeg.fetchFile;
     setStatus('ready', 'Engine ready');
     document.getElementById('ffmpegLoading').style.display = 'none';
     updateRunBtn();
   } catch(e) {
     setStatus('error', 'Engine failed');
     document.getElementById('ffmpegLoading').innerHTML =
-      '<div style="color:var(--error);font-family:\'Space Mono\',monospace;text-align:center;padding:40px">Failed to initialize ffmpeg.<br><span style="font-size:11px;color:var(--muted)">' + e.message + '</span></div>';
+      `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px">
+        Failed to load ffmpeg.wasm.<br>
+        <span style="font-size:11px;color:var(--muted)">${e.message}</span><br><br>
+        <span style="font-size:11px;color:var(--muted)">Ensure the _headers file is deployed on Netlify.</span>
+      </div>`;
   }
 }
 
@@ -320,15 +406,11 @@ function setStatus(state, text) {
   document.getElementById('statusText').textContent = text;
 }
 
-// File handling
-document.getElementById('audioFile').addEventListener('change', function(e) { loadAudio(e.target.files[0]); });
-var dz = document.getElementById('dropZone');
-dz.addEventListener('dragover',  function(e) { e.preventDefault(); dz.classList.add('dragover'); });
-dz.addEventListener('dragleave', function()  { dz.classList.remove('dragover'); });
-dz.addEventListener('drop', function(e) {
-  e.preventDefault(); dz.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) loadAudio(e.dataTransfer.files[0]);
-});
+document.getElementById('audioFile').addEventListener('change', e => loadAudio(e.target.files[0]));
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) loadAudio(e.dataTransfer.files[0]); });
 
 function loadAudio(file) {
   if (!file) return;
@@ -336,56 +418,55 @@ function loadAudio(file) {
   document.getElementById('dropZone').style.display = 'none';
   document.getElementById('fileLoaded').style.display = 'block';
   document.getElementById('fileName').textContent = file.name;
-  document.getElementById('fileMeta').textContent = (file.size/1048576).toFixed(1) + ' MB';
-  var url = URL.createObjectURL(file);
-  var player = document.getElementById('audioPlayer');
+  document.getElementById('fileMeta').textContent = `${(file.size/1048576).toFixed(1)} MB`;
+  const url = URL.createObjectURL(file);
+  const player = document.getElementById('audioPlayer');
   player.src = url;
-  player.onloadedmetadata = function() {
-    var d = player.duration;
+  player.onloadedmetadata = () => {
+    const d = player.duration;
     document.getElementById('durationBadge').textContent = fmtTime(d);
-    document.getElementById('fileMeta').textContent += ' · ' + fmtTime(d);
+    document.getElementById('fileMeta').textContent += ` · ${fmtTime(d)}`;
   };
   updateRunBtn();
 }
 
-function clearFile() {
+window.clearFile = () => {
   audioFile = null;
   document.getElementById('dropZone').style.display = 'block';
   document.getElementById('fileLoaded').style.display = 'none';
   document.getElementById('audioPlayer').src = '';
   document.getElementById('audioFile').value = '';
   updateRunBtn();
-}
+};
 
-function setMode(m) {
+window.setMode = m => {
   mode = m;
   document.getElementById('modeCut').classList.toggle('active', m === 'cut');
   document.getElementById('modeMerge').classList.toggle('active', m === 'merge');
   document.getElementById('mergeNote').style.display = m === 'merge' ? 'block' : 'none';
   document.getElementById('mergeNameRow').style.display = m === 'merge' ? 'flex' : 'none';
-}
+};
 
-// Rows
-function makeRow(name, start, end) {
-  name = name || ''; start = start || ''; end = end || '';
+function makeRow(name='', start='', end='') {
   rowCount++;
-  var tr = document.createElement('tr');
+  const tr = document.createElement('tr');
   tr.dataset.id = rowCount;
   tr.draggable = true;
-  tr.innerHTML =
-    '<td class="seg-num"><span class="drag-handle" title="Drag to reorder">&#10783;</span></td>' +
-    '<td><input class="seg-input" placeholder="e.g. cold_open" value="' + name + '" oninput="updateRunBtn()"></td>' +
-    '<td><input class="seg-input ts" placeholder="00:00:00" value="' + start + '" oninput="validateTs(this)" onblur="formatTs(this)"></td>' +
-    '<td><input class="seg-input ts" placeholder="00:00:00" value="' + end + '" oninput="validateTs(this)" onblur="formatTs(this)"></td>' +
-    '<td><button class="btn-del" onclick="this.closest(\'tr\').remove();updateRunBtn()">&#10005;</button></td>';
-  tr.addEventListener('dragstart', function() { dragSrcRow = tr; tr.classList.add('row-dragging'); });
-  tr.addEventListener('dragend',   function() { tr.classList.remove('row-dragging'); document.querySelectorAll('#segBody tr').forEach(function(r){r.classList.remove('row-drag-over');}); });
-  tr.addEventListener('dragover',  function(e) { e.preventDefault(); document.querySelectorAll('#segBody tr').forEach(function(r){r.classList.remove('row-drag-over');}); tr.classList.add('row-drag-over'); });
-  tr.addEventListener('drop', function(e) {
+  tr.innerHTML = `
+    <td class="seg-num"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
+    <td><input class="seg-input" placeholder="e.g. cold_open" value="${name}" oninput="updateRunBtn()"></td>
+    <td><input class="seg-input ts" placeholder="00:00:00" value="${start}" oninput="validateTs(this)" onblur="formatTs(this)"></td>
+    <td><input class="seg-input ts" placeholder="00:00:00" value="${end}"   oninput="validateTs(this)" onblur="formatTs(this)"></td>
+    <td><button class="btn-del" onclick="this.closest('tr').remove();updateRunBtn()">✕</button></td>
+  `;
+  tr.addEventListener('dragstart', () => { dragSrcRow = tr; tr.classList.add('row-dragging'); });
+  tr.addEventListener('dragend',   () => { tr.classList.remove('row-dragging'); document.querySelectorAll('#segBody tr').forEach(r=>r.classList.remove('row-drag-over')); });
+  tr.addEventListener('dragover',  e => { e.preventDefault(); document.querySelectorAll('#segBody tr').forEach(r=>r.classList.remove('row-drag-over')); tr.classList.add('row-drag-over'); });
+  tr.addEventListener('drop', e => {
     e.preventDefault();
     if (dragSrcRow && dragSrcRow !== tr) {
-      var body = document.getElementById('segBody');
-      var rows = Array.from(body.querySelectorAll('tr'));
+      const body = document.getElementById('segBody');
+      const rows = [...body.querySelectorAll('tr')];
       if (rows.indexOf(dragSrcRow) < rows.indexOf(tr)) body.insertBefore(dragSrcRow, tr.nextSibling);
       else body.insertBefore(dragSrcRow, tr);
     }
@@ -394,267 +475,219 @@ function makeRow(name, start, end) {
   return tr;
 }
 
-function addRow(name, start, end) {
+window.addRow = (name='', start='', end='') => {
   document.getElementById('segBody').appendChild(makeRow(name, start, end));
   updateRunBtn();
-}
-
-function clearRows() {
-  document.getElementById('segBody').innerHTML = '';
-  updateRunBtn();
-}
+};
+window.clearRows = () => { document.getElementById('segBody').innerHTML = ''; updateRunBtn(); };
 
 addRow(); addRow(); addRow();
 
-// Timestamps
-function validateTs(inp) {
-  inp.classList.toggle('invalid', inp.value.length > 0 && parseTs(inp.value) === null);
-  updateRunBtn();
-}
-function formatTs(inp) {
-  var ms = parseTs(inp.value);
-  if (ms !== null) inp.value = msToTs(ms);
-}
+window.validateTs = inp => { inp.classList.toggle('invalid', inp.value.length > 0 && parseTs(inp.value) === null); updateRunBtn(); };
+window.formatTs   = inp => { const ms = parseTs(inp.value); if (ms !== null) inp.value = msToTs(ms); };
+
 function parseTs(s) {
   s = s.trim();
-  var m = s.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})(?:\.(\d+))?$/);
+  const m = s.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})(?:\.(\d+))?$/);
   if (!m) return null;
-  var h = parseInt(m[1]||'0'), min = parseInt(m[2]), sec = parseInt(m[3]);
-  var ms = m[4] ? parseInt(m[4].padEnd(3,'0').slice(0,3)) : 0;
-  if (min >= 60 || sec >= 60) return null;
-  return h*3600000 + min*60000 + sec*1000 + ms;
+  const h=parseInt(m[1]||'0'), min=parseInt(m[2]), sec=parseInt(m[3]);
+  const ms=m[4]?parseInt(m[4].padEnd(3,'0').slice(0,3)):0;
+  if (min>=60||sec>=60) return null;
+  return h*3600000+min*60000+sec*1000+ms;
 }
 function msToTs(ms) {
-  var h = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000), s = Math.floor((ms%60000)/1000);
-  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+  const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), s=Math.floor((ms%60000)/1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 function fmtTime(sec) {
-  var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60);
-  if (h>0) return h+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
-  return m+':'+String(s).padStart(2,'0');
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60);
+  if (h>0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
 }
 
-// CSV
-function loadCSV(input) {
-  var f = input.files[0]; if (!f) return;
-  var reader = new FileReader();
-  reader.onload = function(e) {
-    var lines = e.target.result.split('\n').filter(function(l){return l.trim();});
+window.loadCSV = input => {
+  const f = input.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l=>l.trim());
     clearRows();
-    lines.forEach(function(line) {
-      var p = line.split(',').map(function(x){return x.trim();});
-      if (p.length >= 3) addRow(p[0], p[1], p[2]);
-      else if (p.length === 2) addRow('', p[0], p[1]);
+    lines.forEach(line => {
+      const p = line.split(',').map(x=>x.trim());
+      if (p.length>=3) addRow(p[0],p[1],p[2]);
+      else if (p.length===2) addRow('',p[0],p[1]);
     });
-    logMsg('info', 'Loaded ' + lines.length + ' rows from CSV');
+    logMsg('info', `Loaded ${lines.length} rows from CSV`);
   };
   reader.readAsText(f);
   input.value = '';
-}
+};
 
-// Quality presets
-var PRESETS = {
+const PRESETS = {
   copy:      { format:'mp3',  bitrate:null,   sampleRate:null,    channels:null, note:'<span class="hl">Stream Copy</span> — no re-encoding, fastest. Output matches source exactly.' },
   podcast:   { format:'mp3',  bitrate:'128k', sampleRate:'44100', channels:'1',  note:'<span class="hl">Podcast</span> — 128 kbps mono MP3, 44.1 kHz. Optimized for voice, smallest files.' },
   hifi:      { format:'mp3',  bitrate:'256k', sampleRate:'44100', channels:'2',  note:'<span class="hl">Hi-Fi</span> — 256 kbps MP3, 44.1 kHz stereo. Best balance of quality and file size.' },
   broadcast: { format:'aac',  bitrate:'256k', sampleRate:'48000', channels:'2',  note:'<span class="hl">Broadcast</span> — 256 kbps AAC, 48 kHz stereo. Broadcast-standard sample rate.' },
-  master:    { format:'flac', bitrate:null,   sampleRate:'96000', channels:'2',  note:'<span class="hl">Master</span> — FLAC lossless, 96 kHz stereo. No quality loss. Large files.' }
+  master:    { format:'flac', bitrate:null,   sampleRate:'96000', channels:'2',  note:'<span class="hl">Master</span> — FLAC lossless, 96 kHz stereo. No quality loss. Large files.' },
 };
 
-function applyPreset(key) {
-  var p = PRESETS[key];
-  document.querySelectorAll('.preset-btn').forEach(function(b){b.classList.remove('active');});
+window.applyPreset = key => {
+  const p = PRESETS[key];
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('preset-'+key).classList.add('active');
   document.getElementById('qFormat').value = p.format;
-  if (p.bitrate)     document.getElementById('qBitrate').value = p.bitrate;
-  if (p.sampleRate)  document.getElementById('qSampleRate').value = p.sampleRate;
-  if (p.channels)    document.getElementById('qChannels').value = p.channels;
+  if (p.bitrate)    document.getElementById('qBitrate').value = p.bitrate;
+  if (p.sampleRate) document.getElementById('qSampleRate').value = p.sampleRate;
+  if (p.channels)   document.getElementById('qChannels').value = p.channels;
   onFormatChange(true);
   document.getElementById('qNote').innerHTML = p.note;
-}
+};
 
-function onFormatChange(fromPreset) {
-  var fmt = document.getElementById('qFormat').value;
-  var activeEl = document.querySelector('.preset-btn.active');
-  var isCopy = activeEl && activeEl.id === 'preset-copy';
-  var isLossless = fmt === 'flac' || fmt === 'wav';
-  var bf = document.getElementById('bitrateField');
-  bf.style.opacity = (isLossless || isCopy) ? '0.35' : '1';
-  bf.style.pointerEvents = (isLossless || isCopy) ? 'none' : 'auto';
+window.onFormatChange = (fromPreset=false) => {
+  const fmt = document.getElementById('qFormat').value;
+  const isCopy = document.querySelector('.preset-btn.active')?.id === 'preset-copy';
+  const isLossless = fmt==='flac'||fmt==='wav';
+  const bf = document.getElementById('bitrateField');
+  bf.style.opacity = (isLossless||isCopy) ? '0.35' : '1';
+  bf.style.pointerEvents = (isLossless||isCopy) ? 'none' : 'auto';
   if (!fromPreset) {
-    document.querySelectorAll('.preset-btn').forEach(function(b){b.classList.remove('active');});
-    var fmtLabel = {mp3:'MP3',aac:'AAC',flac:'FLAC',wav:'WAV'}[fmt];
-    var br = document.getElementById('qBitrate').value;
-    var sr = document.getElementById('qSampleRate').value;
-    var ch = document.getElementById('qChannels').value === '2' ? 'stereo' : 'mono';
-    var srL = {'44100':'44.1 kHz','48000':'48 kHz','96000':'96 kHz'}[sr];
-    document.getElementById('qNote').innerHTML =
-      '<span class="hl">Custom</span> — '+(isLossless?'lossless':br)+' '+fmtLabel+', '+srL+' '+ch+'.';
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    const fmtLabel = {mp3:'MP3',aac:'AAC',flac:'FLAC',wav:'WAV'}[fmt];
+    const br=document.getElementById('qBitrate').value;
+    const sr=document.getElementById('qSampleRate').value;
+    const ch=document.getElementById('qChannels').value==='2'?'stereo':'mono';
+    const srL={'44100':'44.1 kHz','48000':'48 kHz','96000':'96 kHz'}[sr];
+    document.getElementById('qNote').innerHTML = `<span class="hl">Custom</span> — ${isLossless?'lossless':br} ${fmtLabel}, ${srL} ${ch}.`;
   }
-}
+};
 
 function getQualitySettings() {
-  var activeEl = document.querySelector('.preset-btn.active');
-  var isCopy = activeEl && activeEl.id === 'preset-copy';
-  var fmt        = document.getElementById('qFormat').value;
-  var bitrate    = document.getElementById('qBitrate').value;
-  var sampleRate = document.getElementById('qSampleRate').value;
-  var channels   = document.getElementById('qChannels').value;
-  var extMap     = {mp3:'.mp3', aac:'.m4a', flac:'.flac', wav:'.wav'};
-  var mimeMap    = {mp3:'audio/mpeg', aac:'audio/mp4', flac:'audio/flac', wav:'audio/wav'};
-  var codecArgs  = [];
-  if (isCopy) {
-    codecArgs = ['-c','copy'];
-  } else if (fmt === 'mp3') {
-    codecArgs = ['-c:a','libmp3lame','-b:a',bitrate,'-ar',sampleRate,'-ac',channels];
-  } else if (fmt === 'aac') {
-    codecArgs = ['-c:a','aac','-b:a',bitrate,'-ar',sampleRate,'-ac',channels];
-  } else if (fmt === 'flac') {
-    codecArgs = ['-c:a','flac','-compression_level','8','-ar',sampleRate,'-ac',channels];
-  } else if (fmt === 'wav') {
-    codecArgs = ['-c:a','pcm_s24le','-ar',sampleRate,'-ac',channels];
-  }
-  return { ext: extMap[fmt], mimeType: mimeMap[fmt], codecArgs: codecArgs, isCopy: isCopy };
+  const isCopy = document.querySelector('.preset-btn.active')?.id==='preset-copy';
+  const fmt=document.getElementById('qFormat').value;
+  const bitrate=document.getElementById('qBitrate').value;
+  const sampleRate=document.getElementById('qSampleRate').value;
+  const channels=document.getElementById('qChannels').value;
+  const ext={mp3:'.mp3',aac:'.m4a',flac:'.flac',wav:'.wav'}[fmt];
+  const mimeType={mp3:'audio/mpeg',aac:'audio/mp4',flac:'audio/flac',wav:'audio/wav'}[fmt];
+  let codecArgs=[];
+  if (isCopy)        codecArgs=['-c','copy'];
+  else if (fmt==='mp3')  codecArgs=['-c:a','libmp3lame','-b:a',bitrate,'-ar',sampleRate,'-ac',channels];
+  else if (fmt==='aac')  codecArgs=['-c:a','aac','-b:a',bitrate,'-ar',sampleRate,'-ac',channels];
+  else if (fmt==='flac') codecArgs=['-c:a','flac','-compression_level','8','-ar',sampleRate,'-ac',channels];
+  else if (fmt==='wav')  codecArgs=['-c:a','pcm_s24le','-ar',sampleRate,'-ac',channels];
+  return { ext, mimeType, codecArgs, isCopy };
 }
 
 applyPreset('hifi');
 
 function updateRunBtn() {
-  var rows = getRows();
-  var hasFile = !!audioFile;
-  var hasRows = rows.length > 0 && rows.every(function(r){ return r.start !== null && r.end !== null && r.start < r.end; });
-  document.getElementById('processBtn').disabled = !(hasFile && hasRows && ffmpeg);
+  const rows = getRows();
+  const hasFile = !!audioFile;
+  const hasRows = rows.length>0 && rows.every(r=>r.start!==null&&r.end!==null&&r.start<r.end);
+  document.getElementById('processBtn').disabled = !(hasFile&&hasRows&&ffmpeg);
 }
 
 function getRows() {
-  var rows = [];
-  document.querySelectorAll('#segBody tr').forEach(function(tr) {
-    var inputs = tr.querySelectorAll('input');
-    var name  = inputs[0].value.trim() || ('segment_' + (rows.length+1));
-    var start = parseTs(inputs[1].value);
-    var end   = parseTs(inputs[2].value);
-    rows.push({ name: name, start: start, end: end });
+  const rows=[];
+  document.querySelectorAll('#segBody tr').forEach(tr=>{
+    const inputs=tr.querySelectorAll('input');
+    rows.push({ name: inputs[0].value.trim()||`segment_${rows.length+1}`, start: parseTs(inputs[1].value), end: parseTs(inputs[2].value) });
   });
   return rows;
 }
 
-async function processAudio() {
-  if (!ffmpeg || !audioFile) return;
-  var rows = getRows();
-  document.getElementById('processBtn').disabled = true;
+window.processAudio = async () => {
+  if (!ffmpeg||!audioFile) return;
+  const rows=getRows();
+  document.getElementById('processBtn').disabled=true;
   document.getElementById('progressWrap').classList.add('visible');
   document.getElementById('log').classList.add('visible');
-  document.getElementById('log').innerHTML = '';
-  document.getElementById('downloads').innerHTML = '';
+  document.getElementById('log').innerHTML='';
+  document.getElementById('downloads').innerHTML='';
   document.getElementById('downloads').classList.remove('visible');
-  setProgress(0, 'Loading file...');
+  setProgress(0,'Loading file...');
 
   try {
-    var extMatch = audioFile.name.match(/\.\w+$/);
-    var srcExt = extMatch ? extMatch[0] : '.mp3';
-    var srcName = 'input' + srcExt;
-    logMsg('info', 'Loading ' + audioFile.name + '...');
-    ffmpeg.FS('writeFile', srcName, await window._fetchFile(audioFile));
-    logMsg('ok', 'File loaded into engine');
+    const srcExt = (audioFile.name.match(/\.\w+$/)||['.mp3'])[0];
+    const srcName = 'input'+srcExt;
+    logMsg('info',`Loading ${audioFile.name}...`);
+    await ffmpeg.writeFile(srcName, await fetchFile(audioFile));
+    logMsg('ok','File loaded into engine');
 
-    var q = getQualitySettings();
-    logMsg('info', 'Output format: ' + q.ext.replace('.','').toUpperCase());
-    var dlLinks = [];
+    const q=getQualitySettings();
+    logMsg('info',`Output: ${q.ext.replace('.','').toUpperCase()}`);
+    const dlLinks=[];
 
-    if (mode === 'cut') {
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        setProgress(Math.round((i/rows.length)*100), 'Cutting: ' + row.name);
-        logMsg('info', 'Cutting "' + row.name + '" (' + msToTs(row.start) + ' \u2192 ' + msToTs(row.end) + ')...');
-        var outName  = sanitize(row.name) + q.ext;
-        var startSec = String(row.start / 1000);
-        var durSec   = String((row.end - row.start) / 1000);
-        var args = ['-i', srcName, '-ss', startSec, '-t', durSec];
-        args = args.concat(q.isCopy ? ['-c','copy'] : q.codecArgs);
-        args = args.concat(['-avoid_negative_ts','make_zero', outName]);
-        await ffmpeg.run.apply(ffmpeg, args);
-        var data = ffmpeg.FS('readFile', outName);
-        var blob = new Blob([data.buffer], { type: q.mimeType });
-        dlLinks.push({ name: outName, url: URL.createObjectURL(blob), size: blob.size });
-        logMsg('ok', '\u2713 ' + outName + ' (' + fmtSize(blob.size) + ')');
-        ffmpeg.FS('unlink', outName);
+    if (mode==='cut') {
+      for (let i=0;i<rows.length;i++) {
+        const row=rows[i];
+        setProgress(Math.round((i/rows.length)*100),`Cutting: ${row.name}`);
+        logMsg('info',`Cutting "${row.name}" (${msToTs(row.start)} → ${msToTs(row.end)})...`);
+        const outName=sanitize(row.name)+q.ext;
+        const startSec=String(row.start/1000), durSec=String((row.end-row.start)/1000);
+        await ffmpeg.exec(['-i',srcName,'-ss',startSec,'-t',durSec,...(q.isCopy?['-c','copy']:q.codecArgs),'-avoid_negative_ts','make_zero',outName]);
+        const data=await ffmpeg.readFile(outName);
+        const blob=new Blob([data.buffer],{type:q.mimeType});
+        dlLinks.push({name:outName, url:URL.createObjectURL(blob), size:blob.size});
+        logMsg('ok',`✓ ${outName} (${fmtSize(blob.size)})`);
+        await ffmpeg.deleteFile(outName);
       }
     } else {
-      setProgress(10, 'Preparing segments...');
-      var segFiles = [];
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var segName  = 'seg_' + i + srcExt;
-        var startSec = String(row.start / 1000);
-        var durSec   = String((row.end - row.start) / 1000);
-        logMsg('info', 'Extracting "' + row.name + '"...');
-        await ffmpeg.run('-i', srcName, '-ss', startSec, '-t', durSec, '-c', 'copy', '-avoid_negative_ts', 'make_zero', segName);
+      setProgress(10,'Preparing segments...');
+      const segFiles=[];
+      for (let i=0;i<rows.length;i++) {
+        const row=rows[i];
+        const segName=`seg_${i}${srcExt}`;
+        const startSec=String(row.start/1000), durSec=String((row.end-row.start)/1000);
+        logMsg('info',`Extracting "${row.name}"...`);
+        await ffmpeg.exec(['-i',srcName,'-ss',startSec,'-t',durSec,'-c','copy','-avoid_negative_ts','make_zero',segName]);
         segFiles.push(segName);
-        setProgress(10 + Math.round((i/rows.length)*50), 'Extracted ' + (i+1) + '/' + rows.length);
+        setProgress(10+Math.round((i/rows.length)*50),`Extracted ${i+1}/${rows.length}`);
       }
-      var listContent = segFiles.map(function(f){ return "file '" + f + "'"; }).join('\n');
-      ffmpeg.FS('writeFile', 'concat_list.txt', new TextEncoder().encode(listContent));
-      var outBaseName = document.getElementById('mergeOutputName').value.trim() || 'merged_output';
-      var outName = sanitize(outBaseName) + q.ext;
-      setProgress(70, 'Merging & encoding...');
-      logMsg('info', 'Merging ' + segFiles.length + ' segments \u2192 ' + outName + '...');
-      var mergeArgs = ['-f','concat','-safe','0','-i','concat_list.txt'];
-      mergeArgs = mergeArgs.concat(q.isCopy ? ['-c','copy'] : q.codecArgs);
-      mergeArgs.push(outName);
-      await ffmpeg.run.apply(ffmpeg, mergeArgs);
-      var data = ffmpeg.FS('readFile', outName);
-      var blob = new Blob([data.buffer], { type: q.mimeType });
-      dlLinks.push({ name: outName, url: URL.createObjectURL(blob), size: blob.size });
-      logMsg('ok', '\u2713 ' + outName + ' (' + fmtSize(blob.size) + ')');
-      segFiles.forEach(function(f){ ffmpeg.FS('unlink', f); });
-      ffmpeg.FS('unlink', 'concat_list.txt');
-      ffmpeg.FS('unlink', outName);
+      const listContent=segFiles.map(f=>`file '${f}'`).join('\n');
+      await ffmpeg.writeFile('concat_list.txt', listContent);
+      const outName=sanitize(document.getElementById('mergeOutputName').value.trim()||'merged_output')+q.ext;
+      setProgress(70,'Merging & encoding...');
+      logMsg('info',`Merging ${segFiles.length} segments → ${outName}...`);
+      await ffmpeg.exec(['-f','concat','-safe','0','-i','concat_list.txt',...(q.isCopy?['-c','copy']:q.codecArgs),outName]);
+      const data=await ffmpeg.readFile(outName);
+      const blob=new Blob([data.buffer],{type:q.mimeType});
+      dlLinks.push({name:outName, url:URL.createObjectURL(blob), size:blob.size});
+      logMsg('ok',`✓ ${outName} (${fmtSize(blob.size)})`);
+      for (const f of segFiles) await ffmpeg.deleteFile(f);
+      await ffmpeg.deleteFile('concat_list.txt');
+      await ffmpeg.deleteFile(outName);
     }
 
-    ffmpeg.FS('unlink', srcName);
-    setProgress(100, 'Done!');
-    logMsg('ok', '\u2713 Complete \u2014 ' + dlLinks.length + ' file' + (dlLinks.length > 1 ? 's' : '') + ' ready');
+    await ffmpeg.deleteFile(srcName);
+    setProgress(100,'Done!');
+    logMsg('ok',`✓ Complete — ${dlLinks.length} file${dlLinks.length>1?'s':''} ready`);
     showDownloads(dlLinks);
 
   } catch(err) {
-    logMsg('err', 'Error: ' + err.message);
-    setStatus('error', 'Error');
+    logMsg('err','Error: '+err.message);
+    setStatus('error','Error');
   }
-
-  document.getElementById('processBtn').disabled = false;
+  document.getElementById('processBtn').disabled=false;
   updateRunBtn();
-}
+};
 
 function showDownloads(links) {
-  var c = document.getElementById('downloads');
-  c.innerHTML = '';
-  links.forEach(function(link) {
-    var a = document.createElement('a');
-    a.href = link.url; a.download = link.name; a.className = 'dl-item';
-    a.innerHTML = '<span class="dl-icon">&#127925;</span><span class="dl-name">'+link.name+'</span><span class="dl-size">'+fmtSize(link.size)+'</span><span class="dl-arrow">&#8595;</span>';
+  const c=document.getElementById('downloads'); c.innerHTML='';
+  links.forEach(link=>{
+    const a=document.createElement('a');
+    a.href=link.url; a.download=link.name; a.className='dl-item';
+    a.innerHTML=`<span class="dl-icon">🎵</span><span class="dl-name">${link.name}</span><span class="dl-size">${fmtSize(link.size)}</span><span class="dl-arrow">↓</span>`;
     c.appendChild(a);
   });
   c.classList.add('visible');
 }
 
-function setProgress(pct, label) {
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('progressLabel').textContent = label;
-  document.getElementById('progressPct').textContent = pct + '%';
-}
-function logMsg(type, msg) {
-  var log = document.getElementById('log');
-  var d = document.createElement('div');
-  d.className = type; d.textContent = msg;
-  log.appendChild(d); log.scrollTop = log.scrollHeight;
-}
-function sanitize(s) {
-  return s.replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'') || 'segment';
-}
-function fmtSize(bytes) {
-  if (bytes > 1048576) return (bytes/1048576).toFixed(1)+' MB';
-  return (bytes/1024).toFixed(0)+' KB';
-}
+function setProgress(pct,label) { document.getElementById('progressFill').style.width=pct+'%'; document.getElementById('progressLabel').textContent=label; document.getElementById('progressPct').textContent=pct+'%'; }
+function logMsg(type,msg) { const log=document.getElementById('log'); const d=document.createElement('div'); d.className=type; d.textContent=msg; log.appendChild(d); log.scrollTop=log.scrollHeight; }
+function sanitize(s) { return s.replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'')||'segment'; }
+function fmtSize(bytes) { if (bytes>1048576) return (bytes/1048576).toFixed(1)+' MB'; return (bytes/1024).toFixed(0)+' KB'; }
+
+initFFmpeg();
 </script>
 </body>
 </html>
