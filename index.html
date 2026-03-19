@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Podcast Cutter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #666;
+    --success: #4eff91;
+    --error: #ff4e6a;
+    --radius: 4px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    background: rgba(13,13,13,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 4px 10px;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+
+  header span {
+    color: var(--accent);
+  }
+
+  .status-bar {
+    margin-left: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .status-dot.ready { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .status-dot.loading { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 1s infinite; }
+  .status-dot.error { background: var(--error); }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px;
+    display: grid;
+    gap: 24px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-header h2 {
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .card-header h2 span {
+    color: var(--accent);
+    margin-right: 8px;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(232,255,71,0.03);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .drop-zone h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .drop-zone p {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .file-loaded {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .file-loaded .file-icon { font-size: 28px; }
+
+  .file-loaded .file-info { flex: 1; }
+  .file-loaded .file-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .file-loaded .file-meta { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 12px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all 0.15s;
+  }
+
+  .btn-ghost:hover { border-color: var(--error); color: var(--error); }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .mode-btn {
+    padding: 8px 20px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .mode-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
+  /* Segments table */
+  .segments-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .segments-table th {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .segments-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: middle;
+  }
+
+  .seg-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    width: 36px;
+    text-align: center;
+  }
+
+  .seg-input {
+    background: var(--surface2);
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 7px 10px;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+
+  .seg-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .seg-input.ts { width: 110px; text-align: center; }
+  .seg-input.invalid { border-color: var(--error) !important; }
+
+  .col-order { width: 44px; }
+  .col-name { min-width: 180px; }
+  .col-ts { width: 120px; }
+  .col-del { width: 44px; }
+
+  .btn-del {
+    background: none;
+    border: none;
+    color: var(--border);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    transition: color 0.15s;
+    line-height: 1;
+  }
+  .btn-del:hover { color: var(--error); }
+
+  .drag-handle {
+    cursor: grab;
+    color: var(--border);
+    font-size: 14px;
+    padding: 4px 8px;
+    display: inline-block;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
+  .row-dragging { opacity: 0.4; }
+  .row-drag-over td { border-top: 2px solid var(--accent); }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .btn {
+    padding: 9px 18px;
+    border-radius: var(--radius);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+  }
+  .btn-primary:hover { background: #d4eb30; }
+  .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+
+  .btn-secondary {
+    background: none;
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-csv {
+    background: none;
+    border-color: var(--border);
+    color: var(--muted);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-csv input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .btn-csv:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* Merge order */
+  .merge-note {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-left: 3px solid var(--accent2);
+    margin-top: 12px;
+  }
+
+  /* Output name */
+  .merge-name-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .merge-name-row label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    margin-top: 24px;
+    display: none;
+  }
+  .progress-wrap.visible { display: block; }
+
+  .progress-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .progress-bar-bg {
+    background: var(--surface2);
+    border-radius: 2px;
+    height: 6px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  /* Log */
+  .log {
+    margin-top: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--muted);
+    display: none;
+  }
+  .log.visible { display: block; }
+  .log .ok { color: var(--success); }
+  .log .err { color: var(--error); }
+  .log .info { color: var(--accent); }
+
+  /* Downloads */
+  .downloads {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .downloads.visible { display: flex; }
+
+  .dl-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s;
+    font-size: 13px;
+  }
+  .dl-item:hover { border-color: var(--success); }
+  .dl-item .dl-icon { font-size: 18px; }
+  .dl-item .dl-name { flex: 1; }
+  .dl-item .dl-size { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
+  .dl-item .dl-arrow { color: var(--success); }
+
+  /* Waveform placeholder */
+  .waveform-bar {
+    height: 48px;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 2px;
+    overflow: hidden;
+  }
+
+  .waveform-bar .bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    opacity: 0.4;
+    animation: waveAnim 1.2s ease-in-out infinite;
+  }
+
+  @keyframes waveAnim {
+    0%,100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
+
+  .audio-player-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  audio {
+    flex: 1;
+    height: 36px;
+    filter: invert(1) hue-rotate(180deg) brightness(0.85);
+    border-radius: var(--radius);
+  }
+
+  .duration-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(232,255,71,0.08);
+    border: 1px solid rgba(232,255,71,0.2);
+    padding: 4px 10px;
+    border-radius: var(--radius);
+    white-space: nowrap;
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 32px 40px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--border);
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+  }
+
+  /* Loading overlay for ffmpeg init */
+  .ffmpeg-loading {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,13,13,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    gap: 16px;
+  }
+
+  .ffmpeg-loading h2 {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+  }
+
+  .ffmpeg-loading p {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Quality config */
+  .quality-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .q-field { display: flex; flex-direction: column; gap: 6px; }
+
+  .q-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .q-select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23666' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+  }
+  .q-select:focus { outline: none; border-color: var(--accent); }
+
+  .preset-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .preset-btn {
+    padding: 6px 14px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .preset-btn.active { background: rgba(232,255,71,0.08); border-color: var(--accent); color: var(--accent); }
+
+  .q-note {
+    grid-column: 1 / -1;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    padding: 8px 12px;
+    background: var(--surface2);
+    border-left: 2px solid var(--border);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    line-height: 1.7;
+  }
+
+  .q-note .hl { color: var(--accent2); }
+
+  /* Tooltip */
+  [data-tip] { position: relative; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: var(--radius);
+    pointer-events: none;
+    z-index: 200;
+  }
+
+  @media (max-width: 700px) {
+    main { padding: 16px; }
+    header { padding: 14px 16px; }
+    .col-name { min-width: 120px; }
+    .seg-input.ts { width: 90px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ffmpeg-loading" id="ffmpegLoading">
+  <div class="spinner"></div>
+  <h2>LOADING ENGINE</h2>
+  <p>Initializing ffmpeg.wasm — runs 100% in your browser</p>
+</div>
+
+<header>
+  <div class="logo">PC</div>
+  <h1>Podcast <span>Cutter</span></h1>
+  <div class="status-bar">
+    <div class="status-dot loading" id="statusDot"></div>
+    <span id="statusText">Initializing...</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- STEP 1: File -->
+  <div class="card">
+    <div class="card-header">
+      <h2><span>01</span> Audio File</h2>
+    </div>
+    <div class="card-body">
+      <div id="dropZone" class="drop-zone">
+        <input type="file" accept="audio/*" id="audioFile">
+        <span class="drop-icon">🎙️</span>
+        <h3>Drop your MP3 here</h3>
+        <p>or click to browse — MP3, WAV, M4A supported</p>
+      </div>
+      <div id="fileLoaded" style="display:none">
+        <div class="file-loaded">
+          <span class="file-icon">🎵</span>
+          <div class="file-info">
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-meta" id="fileMeta">—</div>
+          </div>
+          <button class="btn-ghost" onclick="clearFile()">✕ Remove</button>
+        </div>
+        <div class="audio-player-row">
+          <audio id="audioPlayer" controls></audio>
+          <div class="duration-badge" id="durationBadge">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Mode + Segments -->
+  <div class="card">
+    <div class="card-header">
+      <h2><span>02</span> Segments</h2>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="modeCut" onclick="setMode('cut')">✂ Cut</button>
+        <button class="mode-btn" id="modeMerge" onclick="setMode('merge')">⊕ Merge</button>
+      </div>
+    </div>
+    <div class="card-body">
+
+      <div id="mergeNote" class="merge-note" style="display:none">
+        ⊕ Merge mode — segments will be joined in the order listed below into a single output file. Drag rows to reorder.
+      </div>
+
+      <table class="segments-table" id="segTable">
+        <thead>
+          <tr>
+            <th class="col-order">#</th>
+            <th class="col-name">Segment Name</th>
+            <th class="col-ts">Start</th>
+            <th class="col-ts">End</th>
+            <th class="col-del"></th>
+          </tr>
+        </thead>
+        <tbody id="segBody">
+          <!-- rows inserted by JS -->
+        </tbody>
+      </table>
+
+      <div id="mergeNameRow" class="merge-name-row" style="display:none">
+        <label>Output filename:</label>
+        <input type="text" class="seg-input" id="mergeOutputName" value="merged_output" style="max-width:280px;">
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">.mp3</span>
+      </div>
+
+      <div class="toolbar">
+        <button class="btn btn-secondary" onclick="addRow()">＋ Add Segment</button>
+        <button class="btn btn-csv" data-tip="Load timestamps from CSV">
+          <input type="file" accept=".csv" id="csvFile" onchange="loadCSV(this)">
+          📄 Import CSV
+        </button>
+        <button class="btn btn-ghost" onclick="clearRows()" style="margin-left:auto">Clear All</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">
+          CSV format: <strong style="color:var(--text)">name, start, end</strong> — timestamps as HH:MM:SS or MM:SS
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STEP 3: Output Quality -->
+  <div class="card">
+    <div class="card-header">
+      <h2><span>03</span> Output Quality</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="preset-row">
+        <button class="preset-btn" onclick="applyPreset('copy')" id="preset-copy">Stream Copy</button>
+        <button class="preset-btn" onclick="applyPreset('podcast')" id="preset-podcast">Podcast</button>
+        <button class="preset-btn active" onclick="applyPreset('hifi')" id="preset-hifi">Hi-Fi</button>
+        <button class="preset-btn" onclick="applyPreset('broadcast')" id="preset-broadcast">Broadcast</button>
+        <button class="preset-btn" onclick="applyPreset('master')" id="preset-master">Master</button>
+      </div>
+
+      <div class="quality-grid">
+
+        <div class="q-field">
+          <label class="q-label">Format</label>
+          <select class="q-select" id="qFormat" onchange="onFormatChange()">
+            <option value="mp3">MP3</option>
+            <option value="aac">AAC (.m4a)</option>
+            <option value="flac">FLAC (lossless)</option>
+            <option value="wav">WAV (uncompressed)</option>
+          </select>
+        </div>
+
+        <div class="q-field" id="bitrateField">
+          <label class="q-label">Bitrate</label>
+          <select class="q-select" id="qBitrate">
+            <option value="96k">96 kbps — voice/lo-fi</option>
+            <option value="128k">128 kbps — standard podcast</option>
+            <option value="192k">192 kbps — high quality</option>
+            <option value="256k" selected>256 kbps — hi-fi</option>
+            <option value="320k">320 kbps — maximum MP3</option>
+          </select>
+        </div>
+
+        <div class="q-field" id="sampleRateField">
+          <label class="q-label">Sample Rate</label>
+          <select class="q-select" id="qSampleRate">
+            <option value="44100" selected>44.1 kHz — CD standard</option>
+            <option value="48000">48 kHz — broadcast standard</option>
+            <option value="96000">96 kHz — studio/master</option>
+          </select>
+        </div>
+
+        <div class="q-field">
+          <label class="q-label">Channels</label>
+          <select class="q-select" id="qChannels">
+            <option value="2" selected>Stereo</option>
+            <option value="1">Mono</option>
+          </select>
+        </div>
+
+        <div class="q-note" id="qNote">
+          <span class="hl">Hi-Fi</span> — 256 kbps MP3, 44.1 kHz stereo. Best balance of quality and file size for distribution.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Process -->
+  <div class="card">
+    <div class="card-header">
+      <h2><span>04</span> Process</h2>
+    </div>
+    <div class="card-body">
+      <button class="btn btn-primary" id="processBtn" onclick="processAudio()" disabled>
+        ▶ Run
+      </button>
+
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label">
+          <span id="progressLabel">Processing...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="log" id="log"></div>
+
+      <div class="downloads" id="downloads"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  PODCAST CUTTER — All processing runs in your browser. No files are uploaded to any server.
+</footer>
+
+<script type="module">
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+// ─── State ───────────────────────────────────────────────────────────
+let ffmpeg = null;
+let audioFile = null;
+let mode = 'cut';
+let rowCount = 0;
+let dragSrcRow = null;
+
+// ─── Init ffmpeg ──────────────────────────────────────────────────────
+async function initFFmpeg() {
+  try {
+    ffmpeg = new FFmpeg();
+    ffmpeg.on('log', ({ message }) => { /* suppress verbose */ });
+    await ffmpeg.load({
+      coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
+      wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+    });
+    setStatus('ready', 'Engine ready');
+    document.getElementById('ffmpegLoading').style.display = 'none';
+  } catch (e) {
+    setStatus('error', 'Engine failed');
+    document.getElementById('ffmpegLoading').innerHTML =
+      `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px">
+        Failed to load ffmpeg.wasm.<br><span style="font-size:11px;color:var(--muted)">Try a modern desktop browser (Chrome/Firefox). Some mobile browsers are unsupported.</span>
+      </div>`;
+  }
+}
+
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ─── File handling ────────────────────────────────────────────────────
+document.getElementById('audioFile').addEventListener('change', e => loadAudio(e.target.files[0]));
+
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) loadAudio(f);
+});
+
+function loadAudio(file) {
+  if (!file) return;
+  audioFile = file;
+  document.getElementById('dropZone').style.display = 'none';
+  document.getElementById('fileLoaded').style.display = 'block';
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileMeta').textContent = `${(file.size / 1048576).toFixed(1)} MB`;
+
+  const url = URL.createObjectURL(file);
+  const player = document.getElementById('audioPlayer');
+  player.src = url;
+  player.onloadedmetadata = () => {
+    const d = player.duration;
+    document.getElementById('durationBadge').textContent = fmtTime(d);
+    document.getElementById('fileMeta').textContent +=
+      ` · ${fmtTime(d)}`;
+  };
+  updateRunBtn();
+}
+
+window.clearFile = function() {
+  audioFile = null;
+  document.getElementById('dropZone').style.display = 'block';
+  document.getElementById('fileLoaded').style.display = 'none';
+  document.getElementById('audioPlayer').src = '';
+  document.getElementById('audioFile').value = '';
+  updateRunBtn();
+};
+
+// ─── Mode ─────────────────────────────────────────────────────────────
+window.setMode = function(m) {
+  mode = m;
+  document.getElementById('modeCut').classList.toggle('active', m === 'cut');
+  document.getElementById('modeMerge').classList.toggle('active', m === 'merge');
+  document.getElementById('mergeNote').style.display = m === 'merge' ? 'block' : 'none';
+  document.getElementById('mergeNameRow').style.display = m === 'merge' ? 'flex' : 'none';
+};
+
+// ─── Segment rows ─────────────────────────────────────────────────────
+function makeRow(name = '', start = '', end = '') {
+  rowCount++;
+  const n = rowCount;
+  const tr = document.createElement('tr');
+  tr.dataset.id = n;
+  tr.draggable = true;
+  tr.innerHTML = `
+    <td class="seg-num"><span class="drag-handle" title="Drag to reorder">⠿</span></td>
+    <td><input class="seg-input" placeholder="e.g. cold_open" value="${name}" oninput="updateRunBtn()"></td>
+    <td><input class="seg-input ts" placeholder="00:00:00" value="${start}" oninput="validateTs(this)" onblur="formatTs(this)"></td>
+    <td><input class="seg-input ts" placeholder="00:00:00" value="${end}" oninput="validateTs(this)" onblur="formatTs(this)"></td>
+    <td><button class="btn-del" onclick="this.closest('tr').remove(); renumber(); updateRunBtn()">✕</button></td>
+  `;
+  // Drag events
+  tr.addEventListener('dragstart', e => { dragSrcRow = tr; tr.classList.add('row-dragging'); e.dataTransfer.effectAllowed = 'move'; });
+  tr.addEventListener('dragend', () => { tr.classList.remove('row-dragging'); document.querySelectorAll('#segBody tr').forEach(r=>r.classList.remove('row-drag-over')); });
+  tr.addEventListener('dragover', e => { e.preventDefault(); document.querySelectorAll('#segBody tr').forEach(r=>r.classList.remove('row-drag-over')); tr.classList.add('row-drag-over'); });
+  tr.addEventListener('drop', e => {
+    e.preventDefault();
+    if (dragSrcRow && dragSrcRow !== tr) {
+      const body = document.getElementById('segBody');
+      const rows = [...body.querySelectorAll('tr')];
+      const fromIdx = rows.indexOf(dragSrcRow);
+      const toIdx = rows.indexOf(tr);
+      if (fromIdx < toIdx) body.insertBefore(dragSrcRow, tr.nextSibling);
+      else body.insertBefore(dragSrcRow, tr);
+      renumber();
+    }
+    tr.classList.remove('row-drag-over');
+  });
+  return tr;
+}
+
+function renumber() {
+  document.querySelectorAll('#segBody tr').forEach((tr, i) => {
+    tr.querySelector('.seg-num').innerHTML = `<span class="drag-handle" title="Drag to reorder">⠿</span>`;
+  });
+}
+
+window.addRow = function(name='', start='', end='') {
+  document.getElementById('segBody').appendChild(makeRow(name, start, end));
+  updateRunBtn();
+};
+
+window.clearRows = function() {
+  document.getElementById('segBody').innerHTML = '';
+  updateRunBtn();
+};
+
+// Seed with 3 blank rows
+addRow(); addRow(); addRow();
+
+// ─── Timestamp helpers ────────────────────────────────────────────────
+window.validateTs = function(inp) {
+  inp.classList.toggle('invalid', inp.value.length > 0 && !parseTs(inp.value));
+  updateRunBtn();
+};
+
+window.formatTs = function(inp) {
+  const ms = parseTs(inp.value);
+  if (ms !== null) inp.value = msToTs(ms);
+};
+
+function parseTs(s) {
+  s = s.trim();
+  const m = s.match(/^(?:(\d+):)?(\d{1,2}):(\d{2})(?:\.(\d+))?$/);
+  if (!m) return null;
+  const h = parseInt(m[1] || '0');
+  const min = parseInt(m[2]);
+  const sec = parseInt(m[3]);
+  const ms = m[4] ? parseInt(m[4].padEnd(3,'0').slice(0,3)) : 0;
+  if (min >= 60 || sec >= 60) return null;
+  return h*3600000 + min*60000 + sec*1000 + ms;
+}
+
+function msToTs(ms) {
+  const h = Math.floor(ms/3600000);
+  const m = Math.floor((ms%3600000)/60000);
+  const s = Math.floor((ms%60000)/1000);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function fmtTime(sec) {
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = Math.floor(sec%60);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// ─── CSV import ───────────────────────────────────────────────────────
+window.loadCSV = function(input) {
+  const f = input.files[0]; if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    clearRows();
+    for (const line of lines) {
+      const parts = line.split(',').map(p=>p.trim());
+      if (parts.length >= 3) addRow(parts[0], parts[1], parts[2]);
+      else if (parts.length === 2) addRow('', parts[0], parts[1]);
+    }
+    logMsg('info', `Loaded ${lines.length} rows from CSV`);
+  };
+  reader.readAsText(f);
+  input.value = '';
+};
+
+// ─── Quality config ───────────────────────────────────────────────────
+const PRESETS = {
+  copy:      { format: 'mp3',  bitrate: null,   sampleRate: null,    channels: null,  note: '<span class="hl">Stream Copy</span> — no re-encoding, fastest. Output matches source exactly. Use when source is already high quality.' },
+  podcast:   { format: 'mp3',  bitrate: '128k', sampleRate: '44100', channels: '1',   note: '<span class="hl">Podcast</span> — 128 kbps mono MP3, 44.1 kHz. Optimized for voice. Smallest file size for distribution.' },
+  hifi:      { format: 'mp3',  bitrate: '256k', sampleRate: '44100', channels: '2',   note: '<span class="hl">Hi-Fi</span> — 256 kbps MP3, 44.1 kHz stereo. Best balance of quality and file size for distribution.' },
+  broadcast: { format: 'aac',  bitrate: '256k', sampleRate: '48000', channels: '2',   note: '<span class="hl">Broadcast</span> — 256 kbps AAC, 48 kHz stereo. Broadcast-standard sample rate, efficient codec. Ideal for platform delivery.' },
+  master:    { format: 'flac', bitrate: null,   sampleRate: '96000', channels: '2',   note: '<span class="hl">Master</span> — FLAC lossless, 96 kHz stereo. No quality loss. Use for archiving or further editing. Large files.' },
+};
+
+window.applyPreset = function(key) {
+  const p = PRESETS[key];
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('preset-' + key).classList.add('active');
+
+  const fmtEl = document.getElementById('qFormat');
+  const brEl  = document.getElementById('qBitrate');
+  const srEl  = document.getElementById('qSampleRate');
+  const chEl  = document.getElementById('qChannels');
+
+  fmtEl.value = p.format;
+  if (p.bitrate)     brEl.value = p.bitrate;
+  if (p.sampleRate)  srEl.value = p.sampleRate;
+  if (p.channels)    chEl.value = p.channels;
+
+  onFormatChange(p);
+  document.getElementById('qNote').innerHTML = p.note;
+};
+
+window.onFormatChange = function(preset) {
+  const fmt = document.getElementById('qFormat').value;
+  const bitrateField = document.getElementById('bitrateField');
+  const isCopy = document.querySelector('.preset-btn.active')?.id === 'preset-copy';
+  const isLossless = fmt === 'flac' || fmt === 'wav';
+
+  bitrateField.style.opacity = (isLossless || isCopy) ? '0.35' : '1';
+  bitrateField.style.pointerEvents = (isLossless || isCopy) ? 'none' : 'auto';
+
+  if (!preset) {
+    // User manually changed format — clear active preset
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    updateQNote();
+  }
+};
+
+function updateQNote() {
+  const fmt = document.getElementById('qFormat').value;
+  const br  = document.getElementById('qBitrate').value;
+  const sr  = document.getElementById('qSampleRate').value;
+  const ch  = document.getElementById('qChannels').value === '2' ? 'stereo' : 'mono';
+  const fmtLabel = { mp3: 'MP3', aac: 'AAC', flac: 'FLAC', wav: 'WAV' }[fmt];
+  const srLabel = { '44100': '44.1 kHz', '48000': '48 kHz', '96000': '96 kHz' }[sr];
+  const isLossless = fmt === 'flac' || fmt === 'wav';
+  const brPart = isLossless ? 'lossless' : br;
+  document.getElementById('qNote').innerHTML =
+    `<span class="hl">Custom</span> — ${brPart} ${fmtLabel}, ${srLabel} ${ch}.`;
+}
+
+function getQualitySettings() {
+  const activePreset = document.querySelector('.preset-btn.active')?.id?.replace('preset-', '');
+  const fmt        = document.getElementById('qFormat').value;
+  const bitrate    = document.getElementById('qBitrate').value;
+  const sampleRate = document.getElementById('qSampleRate').value;
+  const channels   = document.getElementById('qChannels').value;
+  const isCopy     = activePreset === 'copy';
+  const isLossless = fmt === 'flac' || fmt === 'wav';
+
+  const ext = { mp3: '.mp3', aac: '.m4a', flac: '.flac', wav: '.wav' }[fmt];
+  const mimeType = { mp3: 'audio/mpeg', aac: 'audio/mp4', flac: 'audio/flac', wav: 'audio/wav' }[fmt];
+
+  // Build ffmpeg codec args
+  let codecArgs = [];
+  if (isCopy) {
+    codecArgs = ['-c', 'copy'];
+  } else if (fmt === 'mp3') {
+    codecArgs = ['-c:a', 'libmp3lame', '-b:a', bitrate, '-ar', sampleRate, '-ac', channels];
+  } else if (fmt === 'aac') {
+    codecArgs = ['-c:a', 'aac', '-b:a', bitrate, '-ar', sampleRate, '-ac', channels];
+  } else if (fmt === 'flac') {
+    codecArgs = ['-c:a', 'flac', '-compression_level', '8', '-ar', sampleRate, '-ac', channels];
+  } else if (fmt === 'wav') {
+    codecArgs = ['-c:a', 'pcm_s24le', '-ar', sampleRate, '-ac', channels];
+  }
+
+  return { ext, mimeType, codecArgs, isCopy };
+}
+
+// Apply hifi preset on load
+applyPreset('hifi');
+
+
+function updateRunBtn() {
+  const rows = getRows();
+  const hasFile = !!audioFile;
+  const hasRows = rows.length > 0 && rows.every(r => r.start !== null && r.end !== null && r.start < r.end);
+  document.getElementById('processBtn').disabled = !(hasFile && hasRows && ffmpeg);
+}
+
+function getRows() {
+  const rows = [];
+  document.querySelectorAll('#segBody tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    const name = inputs[0].value.trim() || `segment_${rows.length+1}`;
+    const start = parseTs(inputs[1].value);
+    const end = parseTs(inputs[2].value);
+    rows.push({ name, start, end });
+  });
+  return rows;
+}
+
+// ─── Process ──────────────────────────────────────────────────────────
+window.processAudio = async function() {
+  if (!ffmpeg || !audioFile) return;
+  const rows = getRows();
+
+  // UI reset
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('visible');
+  document.getElementById('log').classList.add('visible');
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('downloads').innerHTML = '';
+  document.getElementById('downloads').classList.remove('visible');
+  setProgress(0, 'Loading file...');
+
+  try {
+    // Write source file to ffmpeg FS
+    const srcName = 'input' + (audioFile.name.match(/\.\w+$/) || ['.mp3'])[0];
+    logMsg('info', `Loading ${audioFile.name}...`);
+    const fileData = await fetchFile(audioFile);
+    await ffmpeg.writeFile(srcName, fileData);
+    logMsg('ok', 'File loaded into engine');
+
+    const dlLinks = [];
+
+    const q = getQualitySettings();
+    logMsg('info', `Output: ${q.ext.replace('.','').toUpperCase()} ${q.codecArgs.join(' ')}`);
+
+    if (mode === 'cut') {
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const pct = Math.round((i / rows.length) * 100);
+        setProgress(pct, `Cutting: ${row.name}`);
+        logMsg('info', `Cutting "${row.name}" (${msToTs(row.start)} → ${msToTs(row.end)})...`);
+
+        const outName = sanitize(row.name) + q.ext;
+        const startSec = row.start / 1000;
+        const durSec = (row.end - row.start) / 1000;
+
+        // For stream copy: cut first then we're done.
+        // For re-encode: use -ss/-t with codec args.
+        if (q.isCopy) {
+          await ffmpeg.exec([
+            '-i', srcName,
+            '-ss', String(startSec),
+            '-t', String(durSec),
+            '-c', 'copy',
+            '-avoid_negative_ts', 'make_zero',
+            outName
+          ]);
+        } else {
+          await ffmpeg.exec([
+            '-i', srcName,
+            '-ss', String(startSec),
+            '-t', String(durSec),
+            ...q.codecArgs,
+            '-avoid_negative_ts', 'make_zero',
+            outName
+          ]);
+        }
+
+        const data = await ffmpeg.readFile(outName);
+        const blob = new Blob([data.buffer], { type: q.mimeType });
+        const url = URL.createObjectURL(blob);
+        dlLinks.push({ name: outName, url, size: blob.size });
+        logMsg('ok', `✓ ${outName} (${fmtSize(blob.size)})`);
+        await ffmpeg.deleteFile(outName);
+      }
+    } else {
+      // Merge mode — extract segments with stream copy first, then re-encode concat
+      setProgress(10, 'Preparing segments...');
+      const segFiles = [];
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        // Always extract as source format first for clean concat
+        const segExt = (srcName.match(/\.\w+$/) || ['.mp3'])[0];
+        const segName = `seg_${i}${segExt}`;
+        const startSec = row.start / 1000;
+        const durSec = (row.end - row.start) / 1000;
+        logMsg('info', `Extracting "${row.name}"...`);
+        await ffmpeg.exec(['-i', srcName, '-ss', String(startSec), '-t', String(durSec), '-c', 'copy', '-avoid_negative_ts', 'make_zero', segName]);
+        segFiles.push(segName);
+        setProgress(10 + Math.round((i / rows.length) * 50), `Extracted ${i+1}/${rows.length}`);
+      }
+
+      // Write concat list
+      const listContent = segFiles.map(f => `file '${f}'`).join('\n');
+      await ffmpeg.writeFile('concat_list.txt', listContent);
+
+      const outBaseName = (document.getElementById('mergeOutputName').value.trim() || 'merged_output');
+      const outName = sanitize(outBaseName) + q.ext;
+      setProgress(70, 'Merging & encoding...');
+      logMsg('info', `Merging ${segFiles.length} segments → ${outName}...`);
+
+      if (q.isCopy) {
+        await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', '-c', 'copy', outName]);
+      } else {
+        await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', ...q.codecArgs, outName]);
+      }
+
+      const data = await ffmpeg.readFile(outName);
+      const blob = new Blob([data.buffer], { type: q.mimeType });
+      const url = URL.createObjectURL(blob);
+      dlLinks.push({ name: outName, url, size: blob.size });
+      logMsg('ok', `✓ ${outName} (${fmtSize(blob.size)})`);
+
+      // Cleanup
+      for (const f of segFiles) await ffmpeg.deleteFile(f);
+      await ffmpeg.deleteFile('concat_list.txt');
+      await ffmpeg.deleteFile(outName);
+    }
+
+    await ffmpeg.deleteFile(srcName);
+
+    setProgress(100, 'Done!');
+    logMsg('ok', `✓ Complete — ${dlLinks.length} file${dlLinks.length > 1 ? 's' : ''} ready`);
+    showDownloads(dlLinks);
+
+  } catch (err) {
+    logMsg('err', `Error: ${err.message}`);
+    setStatus('error', 'Error');
+  }
+
+  document.getElementById('processBtn').disabled = false;
+  updateRunBtn();
+};
+
+function showDownloads(links) {
+  const container = document.getElementById('downloads');
+  container.innerHTML = '';
+  for (const link of links) {
+    const a = document.createElement('a');
+    a.href = link.url;
+    a.download = link.name;
+    a.className = 'dl-item';
+    a.innerHTML = `
+      <span class="dl-icon">🎵</span>
+      <span class="dl-name">${link.name}</span>
+      <span class="dl-size">${fmtSize(link.size)}</span>
+      <span class="dl-arrow">↓</span>
+    `;
+    container.appendChild(a);
+  }
+  container.classList.add('visible');
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+function setProgress(pct, label) {
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+  document.getElementById('progressPct').textContent = pct + '%';
+}
+
+function logMsg(type, msg) {
+  const log = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = type;
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function sanitize(s) {
+  return s.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'segment';
+}
+
+function fmtSize(bytes) {
+  if (bytes > 1048576) return (bytes/1048576).toFixed(1) + ' MB';
+  return (bytes/1024).toFixed(0) + ' KB';
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────
+initFFmpeg();
+</script>
+</body>
+</html>
