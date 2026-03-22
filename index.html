@@ -393,7 +393,9 @@ let dragSrcRow = null;
 async function initFFmpeg() {
   try {
     ffmpeg = createFFmpeg({ corePath: '/ffmpeg/ffmpeg-core.js' });
-    await ffmpeg.load();
+    const loadPromise = ffmpeg.load();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Load timeout after 10 seconds')), 10000));
+    await Promise.race([loadPromise, timeoutPromise]);
     setStatus('ready', 'Engine ready');
     document.getElementById('ffmpegLoading').style.display = 'none';
     updateRunBtn();
