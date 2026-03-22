@@ -379,7 +379,7 @@
 <footer>PODCAST CUTTER — All processing runs in your browser. No files are uploaded to any server.</footer>
 
 <script type="module">
-import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/wasm@0.12.1/dist/index.js';
 import { fetchFile } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
 
 let ffmpeg = null;
@@ -392,7 +392,7 @@ let dragSrcRow = null;
 
 async function initFFmpeg() {
   try {
-    ffmpeg = new FFmpeg();
+    ffmpeg = new window.FFmpegWASM.FFmpeg();
     ffmpeg.on('log', () => {});
     await ffmpeg.load({
       coreURL: './ffmpeg/ffmpeg-core.js',
