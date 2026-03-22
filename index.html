@@ -235,6 +235,14 @@
         <h3>Drop your MP3 here</h3>
         <p>or click to browse — MP3, WAV, M4A supported</p>
       </div>
+      <div style="margin-top:16px;text-align:center">
+        <span style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">or</span>
+      </div>
+      <div style="margin-top:16px">
+        <label style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">Enter Audio URL:</label>
+        <input type="url" id="audioUrl" placeholder="https://example.com/audio.mp3" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'Space Mono',monospace;font-size:12px;padding:8px;margin-top:4px;">
+        <button class="btn btn-secondary" onclick="loadFromUrl()" style="margin-top:8px;width:100%">Load from URL</button>
+      </div>
       <div id="fileLoaded" style="display:none">
         <div class="file-loaded">
           <span class="file-icon">🎵</span>
@@ -291,7 +299,8 @@
       </div>
       <div style="margin-top:12px">
         <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">
-          CSV format: <strong style="color:var(--text)">name, start, end</strong> — timestamps as HH:MM:SS or MM:SS
+          CSV format: <strong>name, start, end</strong> — timestamps as HH:MM:SS or MM:SS<br>
+          Or batch: <strong>url, name, start, end</strong> — process multiple files
         </p>
       </div>
     </div>
@@ -370,12 +379,14 @@
 <footer>PODCAST CUTTER — All processing runs in your browser. No files are uploaded to any server.</footer>
 
 <script type="module">
-import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
-import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/esm/index.js';
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
 
 let ffmpeg = null;
-let audioFile = null;
+let audioSource = null;
 let mode = 'cut';
+let batchMode = false;
+let batchData = null;
 let rowCount = 0;
 let dragSrcRow = null;
 
@@ -384,8 +395,8 @@ async function initFFmpeg() {
     ffmpeg = new FFmpeg();
     ffmpeg.on('log', () => {});
     await ffmpeg.load({
-      coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.js',
-      wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm/ffmpeg-core.wasm',
+      coreURL: './ffmpeg/ffmpeg-core.js',
+      wasmURL: './ffmpeg/ffmpeg-core.wasm',
     });
     setStatus('ready', 'Engine ready');
     document.getElementById('ffmpegLoading').style.display = 'none';
@@ -414,7 +425,7 @@ dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag
 
 function loadAudio(file) {
   if (!file) return;
-  audioFile = file;
+  audioSource = { type: 'file', data: file };
   document.getElementById('dropZone').style.display = 'none';
   document.getElementById('fileLoaded').style.display = 'block';
   document.getElementById('fileName').textContent = file.name;
@@ -431,12 +442,38 @@ function loadAudio(file) {
 }
 
 window.clearFile = () => {
-  audioFile = null;
+  audioSource = null;
   document.getElementById('dropZone').style.display = 'block';
   document.getElementById('fileLoaded').style.display = 'none';
   document.getElementById('audioPlayer').src = '';
   document.getElementById('audioFile').value = '';
+  document.getElementById('audioUrl').value = '';
   updateRunBtn();
+};
+
+window.loadFromUrl = async () => {
+  const url = document.getElementById('audioUrl').value.trim();
+  if (!url) return;
+  setStatus('loading', 'Loading from URL...');
+  try {
+    audioSource = { type: 'url', data: url };
+    document.getElementById('dropZone').style.display = 'none';
+    document.getElementById('fileLoaded').style.display = 'block';
+    document.getElementById('fileName').textContent = url.split('/').pop() || 'audio.mp3';
+    document.getElementById('fileMeta').textContent = 'Loading...';
+    const player = document.getElementById('audioPlayer');
+    player.src = url;
+    player.onloadedmetadata = () => {
+      const d = player.duration;
+      document.getElementById('durationBadge').textContent = fmtTime(d);
+      document.getElementById('fileMeta').textContent = `URL · ${fmtTime(d)}`;
+      setStatus('ready', 'File loaded');
+    };
+    updateRunBtn();
+  } catch (e) {
+    setStatus('error', 'Failed to load URL');
+    logMsg('err', 'URL load error: ' + e.message);
+  }
 };
 
 window.setMode = m => {
@@ -510,13 +547,38 @@ window.loadCSV = input => {
   const reader = new FileReader();
   reader.onload = e => {
     const lines = e.target.result.split('\n').filter(l=>l.trim());
-    clearRows();
-    lines.forEach(line => {
-      const p = line.split(',').map(x=>x.trim());
-      if (p.length>=3) addRow(p[0],p[1],p[2]);
-      else if (p.length===2) addRow('',p[0],p[1]);
-    });
-    logMsg('info', `Loaded ${lines.length} rows from CSV`);
+    if (lines.length === 0) return;
+    const firstLine = lines[0].split(',').map(x=>x.trim().toLowerCase());
+    if (firstLine[0] === 'url' && firstLine.length >= 4) {
+      // Batch mode
+      batchMode = true;
+      batchData = lines.slice(1).map(line => {
+        const p = line.split(',').map(x=>x.trim());
+        return { url: p[0], name: p[1] || 'segment', start: p[2], end: p[3] };
+      }).filter(item => item.url && item.start && item.end);
+      document.getElementById('segBody').style.display = 'none';
+      document.getElementById('mergeNote').style.display = 'none';
+      document.getElementById('mergeNameRow').style.display = 'none';
+      document.getElementById('modeCut').style.display = 'none';
+      document.getElementById('modeMerge').style.display = 'none';
+      logMsg('info', `Loaded ${batchData.length} batch items from CSV`);
+    } else {
+      // Single file segments
+      batchMode = false;
+      batchData = null;
+      clearRows();
+      lines.forEach(line => {
+        const p = line.split(',').map(x=>x.trim());
+        if (p.length>=3) addRow(p[0],p[1],p[2]);
+        else if (p.length===2) addRow('',p[0],p[1]);
+      });
+      document.getElementById('segBody').style.display = '';
+      document.getElementById('mergeNote').style.display = mode === 'merge' ? 'block' : 'none';
+      document.getElementById('mergeNameRow').style.display = mode === 'merge' ? 'flex' : 'none';
+      document.getElementById('modeCut').style.display = '';
+      document.getElementById('modeMerge').style.display = '';
+    }
+    updateRunBtn();
   };
   reader.readAsText(f);
   input.value = '';
@@ -580,10 +642,10 @@ function getQualitySettings() {
 applyPreset('hifi');
 
 function updateRunBtn() {
-  const rows = getRows();
-  const hasFile = !!audioFile;
-  const hasRows = rows.length>0 && rows.every(r=>r.start!==null&&r.end!==null&&r.start<r.end);
-  document.getElementById('processBtn').disabled = !(hasFile&&hasRows&&ffmpeg);
+  const hasSource = !!audioSource;
+  const hasBatch = batchMode && batchData && batchData.length > 0;
+  const hasRows = !batchMode && getRows().length>0 && getRows().every(r=>r.start!==null&&r.end!==null&&r.start<r.end);
+  document.getElementById('processBtn').disabled = !( (hasSource && hasRows) || hasBatch ) || !ffmpeg;
 }
 
 function getRows() {
@@ -596,8 +658,13 @@ function getRows() {
 }
 
 window.processAudio = async () => {
-  if (!ffmpeg||!audioFile) return;
-  const rows=getRows();
+  if (!ffmpeg) return;
+  if (batchMode) {
+    if (!batchData || batchData.length === 0) return;
+  } else {
+    if (!audioSource) return;
+  }
+  const rows = batchMode ? [] : getRows();
   document.getElementById('processBtn').disabled=true;
   document.getElementById('progressWrap').classList.add('visible');
   document.getElementById('log').classList.add('visible');
@@ -607,65 +674,92 @@ window.processAudio = async () => {
   setProgress(0,'Loading file...');
 
   try {
-    const srcExt = (audioFile.name.match(/\.\w+$/)||['.mp3'])[0];
-    const srcName = 'input'+srcExt;
-    logMsg('info',`Loading ${audioFile.name}...`);
-    await ffmpeg.writeFile(srcName, await fetchFile(audioFile));
-    logMsg('ok','File loaded into engine');
+    const q = getQualitySettings();
+    logMsg('info', `Output: ${q.ext.replace('.', '').toUpperCase()}`);
+    const dlLinks = [];
 
-    const q=getQualitySettings();
-    logMsg('info',`Output: ${q.ext.replace('.','').toUpperCase()}`);
-    const dlLinks=[];
-
-    if (mode==='cut') {
-      for (let i=0;i<rows.length;i++) {
-        const row=rows[i];
-        setProgress(Math.round((i/rows.length)*100),`Cutting: ${row.name}`);
-        logMsg('info',`Cutting "${row.name}" (${msToTs(row.start)} → ${msToTs(row.end)})...`);
-        const outName=sanitize(row.name)+q.ext;
-        const startSec=String(row.start/1000), durSec=String((row.end-row.start)/1000);
-        await ffmpeg.exec(['-i',srcName,'-ss',startSec,'-t',durSec,...(q.isCopy?['-c','copy']:q.codecArgs),'-avoid_negative_ts','make_zero',outName]);
-        const data=await ffmpeg.readFile(outName);
-        const blob=new Blob([data.buffer],{type:q.mimeType});
-        dlLinks.push({name:outName, url:URL.createObjectURL(blob), size:blob.size});
-        logMsg('ok',`✓ ${outName} (${fmtSize(blob.size)})`);
+    if (batchMode) {
+      for (let i = 0; i < batchData.length; i++) {
+        const item = batchData[i];
+        setProgress(Math.round((i / batchData.length) * 100), `Processing ${item.name}...`);
+        logMsg('info', `Loading ${item.url}...`);
+        const srcName = 'input.mp3';
+        await ffmpeg.writeFile(srcName, await fetchFile(item.url));
+        const row = { name: item.name, start: parseTs(item.start), end: parseTs(item.end) };
+        if (row.start === null || row.end === null || row.start >= row.end) {
+          logMsg('err', `Invalid timestamps for ${item.name}`);
+          await ffmpeg.deleteFile(srcName);
+          continue;
+        }
+        logMsg('info', `Cutting "${row.name}" (${msToTs(row.start)} → ${msToTs(row.end)})...`);
+        const outName = sanitize(row.name) + q.ext;
+        const startSec = String(row.start / 1000), durSec = String((row.end - row.start) / 1000);
+        await ffmpeg.exec(['-i', srcName, '-ss', startSec, '-t', durSec, ...(q.isCopy ? ['-c', 'copy'] : q.codecArgs), '-avoid_negative_ts', 'make_zero', outName]);
+        const data = await ffmpeg.readFile(outName);
+        const blob = new Blob([data.buffer], { type: q.mimeType });
+        dlLinks.push({ name: outName, url: URL.createObjectURL(blob), size: blob.size });
+        logMsg('ok', `✓ ${outName} (${fmtSize(blob.size)})`);
         await ffmpeg.deleteFile(outName);
+        await ffmpeg.deleteFile(srcName);
       }
     } else {
-      setProgress(10,'Preparing segments...');
-      const segFiles=[];
-      for (let i=0;i<rows.length;i++) {
-        const row=rows[i];
-        const segName=`seg_${i}${srcExt}`;
-        const startSec=String(row.start/1000), durSec=String((row.end-row.start)/1000);
-        logMsg('info',`Extracting "${row.name}"...`);
-        await ffmpeg.exec(['-i',srcName,'-ss',startSec,'-t',durSec,'-c','copy','-avoid_negative_ts','make_zero',segName]);
-        segFiles.push(segName);
-        setProgress(10+Math.round((i/rows.length)*50),`Extracted ${i+1}/${rows.length}`);
+      const srcExt = audioSource.type === 'file' ? (audioSource.data.name.match(/\.\w+$/) || ['.mp3'])[0] : '.mp3';
+      const srcName = 'input' + srcExt;
+      const sourceName = audioSource.type === 'file' ? audioSource.data.name : audioSource.data;
+      logMsg('info', `Loading ${sourceName}...`);
+      await ffmpeg.writeFile(srcName, await fetchFile(audioSource.data));
+      logMsg('ok', 'File loaded into engine');
+
+      if (mode === 'cut') {
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          setProgress(Math.round((i / rows.length) * 100), `Cutting: ${row.name}`);
+          logMsg('info', `Cutting "${row.name}" (${msToTs(row.start)} → ${msToTs(row.end)})...`);
+          const outName = sanitize(row.name) + q.ext;
+          const startSec = String(row.start / 1000), durSec = String((row.end - row.start) / 1000);
+          await ffmpeg.exec(['-i', srcName, '-ss', startSec, '-t', durSec, ...(q.isCopy ? ['-c', 'copy'] : q.codecArgs), '-avoid_negative_ts', 'make_zero', outName]);
+          const data = await ffmpeg.readFile(outName);
+          const blob = new Blob([data.buffer], { type: q.mimeType });
+          dlLinks.push({ name: outName, url: URL.createObjectURL(blob), size: blob.size });
+          logMsg('ok', `✓ ${outName} (${fmtSize(blob.size)})`);
+          await ffmpeg.deleteFile(outName);
+        }
+      } else {
+        setProgress(10, 'Preparing segments...');
+        const segFiles = [];
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const segName = `seg_${i}${srcExt}`;
+          const startSec = String(row.start / 1000), durSec = String((row.end - row.start) / 1000);
+          logMsg('info', `Extracting "${row.name}"...`);
+          await ffmpeg.exec(['-i', srcName, '-ss', startSec, '-t', durSec, '-c', 'copy', '-avoid_negative_ts', 'make_zero', segName]);
+          segFiles.push(segName);
+          setProgress(10 + Math.round((i / rows.length) * 50), `Extracted ${i + 1}/${rows.length}`);
+        }
+        const listContent = segFiles.map(f => `file '${f}'`).join('\n');
+        await ffmpeg.writeFile('concat_list.txt', listContent);
+        const outName = sanitize(document.getElementById('mergeOutputName').value.trim() || 'merged_output') + q.ext;
+        setProgress(70, 'Merging & encoding...');
+        logMsg('info', `Merging ${segFiles.length} segments → ${outName}...`);
+        await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat_list.txt', ...(q.isCopy ? ['-c', 'copy'] : q.codecArgs), outName]);
+        const data = await ffmpeg.readFile(outName);
+        const blob = new Blob([data.buffer], { type: q.mimeType });
+        dlLinks.push({ name: outName, url: URL.createObjectURL(blob), size: blob.size });
+        logMsg('ok', `✓ ${outName} (${fmtSize(blob.size)})`);
+        for (const f of segFiles) await ffmpeg.deleteFile(f);
+        await ffmpeg.deleteFile('concat_list.txt');
+        await ffmpeg.deleteFile(outName);
       }
-      const listContent=segFiles.map(f=>`file '${f}'`).join('\n');
-      await ffmpeg.writeFile('concat_list.txt', listContent);
-      const outName=sanitize(document.getElementById('mergeOutputName').value.trim()||'merged_output')+q.ext;
-      setProgress(70,'Merging & encoding...');
-      logMsg('info',`Merging ${segFiles.length} segments → ${outName}...`);
-      await ffmpeg.exec(['-f','concat','-safe','0','-i','concat_list.txt',...(q.isCopy?['-c','copy']:q.codecArgs),outName]);
-      const data=await ffmpeg.readFile(outName);
-      const blob=new Blob([data.buffer],{type:q.mimeType});
-      dlLinks.push({name:outName, url:URL.createObjectURL(blob), size:blob.size});
-      logMsg('ok',`✓ ${outName} (${fmtSize(blob.size)})`);
-      for (const f of segFiles) await ffmpeg.deleteFile(f);
-      await ffmpeg.deleteFile('concat_list.txt');
-      await ffmpeg.deleteFile(outName);
+      await ffmpeg.deleteFile(srcName);
     }
 
-    await ffmpeg.deleteFile(srcName);
-    setProgress(100,'Done!');
-    logMsg('ok',`✓ Complete — ${dlLinks.length} file${dlLinks.length>1?'s':''} ready`);
+    setProgress(100, 'Done!');
+    logMsg('ok', `✓ Complete — ${dlLinks.length} file${dlLinks.length > 1 ? 's' : ''} ready`);
     showDownloads(dlLinks);
 
-  } catch(err) {
-    logMsg('err','Error: '+err.message);
-    setStatus('error','Error');
+  } catch (err) {
+    logMsg('err', 'Error: ' + err.message);
+    setStatus('error', 'Error');
   }
   document.getElementById('processBtn').disabled=false;
   updateRunBtn();
