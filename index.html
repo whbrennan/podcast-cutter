@@ -392,7 +392,7 @@ let dragSrcRow = null;
 
 async function initFFmpeg() {
   try {
-    ffmpeg = createFFmpeg({ corePath: './ffmpeg/ffmpeg-core.js' });
+    ffmpeg = createFFmpeg({ corePath: '/ffmpeg/ffmpeg-core.js' });
     await ffmpeg.load();
     setStatus('ready', 'Engine ready');
     document.getElementById('ffmpegLoading').style.display = 'none';
