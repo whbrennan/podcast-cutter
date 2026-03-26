@@ -1,0 +1,5 @@
+# Sample batch CSV for multi-file imports
+# Rows starting with __sample__ are ignored if this file is uploaded.
+url,name,start,end
+__sample__ https://example.com/episode-01.mp3,Cold Open,00:00,00:45
+__sample__ https://example.com/episode-02.mp3,Ad Break,14:10,15:00

@@ -1,0 +1,6 @@
+# Sample CSV for segment imports
+# Rows starting with __sample__ are ignored if this file is uploaded.
+name,start,end
+__sample__ Intro Clip,00:00,00:30
+__sample__ Sponsor Read,12:15,12:45
+__sample__ Outro,28:10,29:00

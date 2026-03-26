@@ -151,6 +151,10 @@
   .btn-csv { background: none; border-color: var(--border); color: var(--muted); position: relative; overflow: hidden; }
   .btn-csv input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .btn-csv:hover { border-color: var(--accent2); color: var(--accent2); }
+  .template-links { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .template-links a { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--accent2); text-decoration: none; }
+  .template-links a:hover { color: var(--ink); }
+  .template-links span { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
 
   .merge-note { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); padding: 10px 14px; background: var(--surface2); border-left: 3px solid var(--accent2); margin-top: 12px; }
   .merge-name-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
@@ -302,6 +306,13 @@
           CSV format: <strong>name, start, end</strong> — timestamps as HH:MM:SS or MM:SS<br>
           Or batch: <strong>url, name, start, end</strong> — process multiple files
         </p>
+        <div class="template-links">
+          <a href="./segments-sample.csv" download>Download sample CSV</a>
+          <a href="./segments-template.csv" download>Download blank template</a>
+          <a href="./segments-batch-sample.csv" download>Download batch sample CSV</a>
+          <a href="./segments-batch-template.csv" download>Download batch template</a>
+          <span>Sample rows marked with <strong>__sample__</strong> are ignored if uploaded.</span>
+        </div>
       </div>
     </div>
   </div>
@@ -593,14 +604,25 @@ window.loadCSV = input => {
   const f = input.files[0]; if (!f) return;
   const reader = new FileReader();
   reader.onload = e => {
-    const lines = e.target.result.split('\n').filter(l=>l.trim());
-    if (lines.length === 0) return;
-    const firstLine = lines[0].split(',').map(x=>x.trim().toLowerCase());
+    const rows = e.target.result
+      .split(/\r?\n/)
+      .map(line => line.split(',').map(x => x.trim().replace(/^\uFEFF/, '')))
+      .filter(cells => cells.some(Boolean) && !(cells[0] || '').startsWith('#'));
+    if (rows.length === 0) return;
+
+    const isHeaderRow = cells => {
+      const p = cells.map(x => x.trim().toLowerCase());
+      return (p[0] === 'name' && p[1] === 'start' && p[2] === 'end') ||
+             (p[0] === 'url' && p[1] === 'name' && p[2] === 'start' && p[3] === 'end');
+    };
+    const isSampleRow = cells => (cells[0] || '').trim().toLowerCase().startsWith('__sample__');
+    const firstLine = rows[0].map(x => x.trim().toLowerCase());
+    const dataRows = rows.filter(cells => !isHeaderRow(cells) && !isSampleRow(cells));
+
     if (firstLine[0] === 'url' && firstLine.length >= 4) {
       // Batch mode
       batchMode = true;
-      batchData = lines.slice(1).map(line => {
-        const p = line.split(',').map(x=>x.trim());
+      batchData = dataRows.map(p => {
         return { url: p[0], name: p[1] || 'segment', start: p[2], end: p[3] };
       }).filter(item => item.url && item.start && item.end);
       document.getElementById('segBody').style.display = 'none';
@@ -614,8 +636,7 @@ window.loadCSV = input => {
       batchMode = false;
       batchData = null;
       clearRows();
-      lines.forEach(line => {
-        const p = line.split(',').map(x=>x.trim());
+      dataRows.forEach(p => {
         if (p.length>=3) addRow(p[0],p[1],p[2]);
         else if (p.length===2) addRow('',p[0],p[1]);
       });
