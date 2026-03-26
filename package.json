@@ -1,0 +1,6 @@
+{
+  "name": "podcast-cutter",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Static browser-based audio cutter for Vercel deployment"
+}
