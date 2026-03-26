@@ -379,10 +379,10 @@
 <footer>PODCAST CUTTER — All processing runs in your browser. No files are uploaded to any server.</footer>
 
 <script type="module">
-import { createFFmpeg } from 'https://unpkg.com/@ffmpeg/core@0.12.1/dist/esm/index.js';
-import { fetchFile } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+import createFFmpegCore from './ffmpeg/ffmpeg-core.js';
 
 let ffmpeg = null;
+let ffmpegLoaded = false;
 let audioSource = null;
 let mode = 'cut';
 let batchMode = false;
@@ -391,21 +391,72 @@ let rowCount = 0;
 let dragSrcRow = null;
 
 async function initFFmpeg() {
-  ffmpeg = createFFmpeg({ corePath: '/ffmpeg/ffmpeg-core.js' });
-  ffmpeg.load().then(() => {
+  try {
+    ffmpeg = await createFFmpegWrapper();
+    ffmpegLoaded = true;
     setStatus('ready', 'Engine ready');
     document.getElementById('ffmpegLoading').style.display = 'none';
     updateRunBtn();
-  }).catch(e => {
+  } catch (e) {
     setStatus('error', 'Engine failed');
-    document.getElementById('ffmpegLoading').innerHTML = `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px"> Failed to load ffmpeg.wasm.<br> <span style="font-size:11px;color:var(--muted)">${e.message}</span><br><br> <span style="font-size:11px;color:var(--muted)">Ensure the _headers file is deployed on Netlify.</span> </div>`;
-  });
+    document.getElementById('ffmpegLoading').innerHTML = `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px"> Failed to load ffmpeg.wasm.<br> <span style="font-size:11px;color:var(--muted)">${e.message}</span><br><br> <span style="font-size:11px;color:var(--muted)">Verify your Vercel headers and the files in /ffmpeg are deployed.</span> </div>`;
+  }
   setTimeout(() => {
-    if (!ffmpeg || !ffmpeg.loaded) {
+    if (!ffmpegLoaded) {
       setStatus('error', 'Engine failed');
-      document.getElementById('ffmpegLoading').innerHTML = `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px"> Failed to load ffmpeg.wasm.<br> <span style="font-size:11px;color:var(--muted)">Load timeout after 10 seconds</span><br><br> <span style="font-size:11px;color:var(--muted)">Ensure the _headers file is deployed on Netlify.</span> </div>`;
+      document.getElementById('ffmpegLoading').innerHTML = `<div style="color:var(--error);font-family:'Space Mono',monospace;text-align:center;padding:40px"> Failed to load ffmpeg.wasm.<br> <span style="font-size:11px;color:var(--muted)">Load timeout after 10 seconds</span><br><br> <span style="font-size:11px;color:var(--muted)">Verify your Vercel headers and the files in /ffmpeg are deployed.</span> </div>`;
     }
   }, 10000);
+}
+
+async function createFFmpegWrapper() {
+  const core = await createFFmpegCore({
+    locateFile: path => `/ffmpeg/${path}`,
+  });
+
+  return {
+    loaded: true,
+    async writeFile(name, data) {
+      const bytes = toUint8Array(data);
+      core.FS.writeFile(name, bytes);
+    },
+    async readFile(name) {
+      return core.FS.readFile(name);
+    },
+    async deleteFile(name) {
+      try {
+        core.FS.unlink(name);
+      } catch (e) {
+        if (!String(e?.message || e).includes('No such file')) throw e;
+      }
+    },
+    async exec(args) {
+      core.reset();
+      const exitCode = core.exec(...args);
+      if (exitCode !== 0) {
+        throw new Error(`ffmpeg exited with code ${exitCode}`);
+      }
+    }
+  };
+}
+
+function toUint8Array(data) {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (typeof data === 'string') return new TextEncoder().encode(data);
+  throw new Error('Unsupported file payload');
+}
+
+async function readSourceData(source) {
+  if (source instanceof Blob) {
+    return new Uint8Array(await source.arrayBuffer());
+  }
+
+  const response = await fetch(source);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch source (${response.status})`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 function setStatus(state, text) {
@@ -641,7 +692,7 @@ function updateRunBtn() {
   const hasSource = !!audioSource;
   const hasBatch = batchMode && batchData && batchData.length > 0;
   const hasRows = !batchMode && getRows().length>0 && getRows().every(r=>r.start!==null&&r.end!==null&&r.start<r.end);
-  document.getElementById('processBtn').disabled = !( (hasSource && hasRows) || hasBatch ) || !ffmpeg;
+  document.getElementById('processBtn').disabled = !( (hasSource && hasRows) || hasBatch ) || !ffmpegLoaded;
 }
 
 function getRows() {
@@ -680,7 +731,7 @@ window.processAudio = async () => {
         setProgress(Math.round((i / batchData.length) * 100), `Processing ${item.name}...`);
         logMsg('info', `Loading ${item.url}...`);
         const srcName = 'input.mp3';
-        await ffmpeg.writeFile(srcName, await fetchFile(item.url));
+        await ffmpeg.writeFile(srcName, await readSourceData(item.url));
         const row = { name: item.name, start: parseTs(item.start), end: parseTs(item.end) };
         if (row.start === null || row.end === null || row.start >= row.end) {
           logMsg('err', `Invalid timestamps for ${item.name}`);
@@ -703,7 +754,7 @@ window.processAudio = async () => {
       const srcName = 'input' + srcExt;
       const sourceName = audioSource.type === 'file' ? audioSource.data.name : audioSource.data;
       logMsg('info', `Loading ${sourceName}...`);
-      await ffmpeg.writeFile(srcName, await fetchFile(audioSource.data));
+      await ffmpeg.writeFile(srcName, await readSourceData(audioSource.data));
       logMsg('ok', 'File loaded into engine');
 
       if (mode === 'cut') {
